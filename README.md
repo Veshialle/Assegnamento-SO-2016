@@ -14,5 +14,7 @@ Spero di essere stato di aiuto.
 
 
 PS: Nota volante per una possibile risoluzione (parte di un esercizio di altro esame):
+
 p.nome = (char *)malloc(strlen(stringa)+1); // p.nome è una variabile non ancora inizializzata, focalizzare l'attenzione sulla dimensione di allocamento all'interno di malloc(); con appunto solo (strlen(stringa)+1) e non (strlen(stringa)*sizeof(char)) (o ancor meglio ((strlen(stringa)+1)*sizeof(char));
+
 HAVE A NICE DAY
