@@ -9,75 +9,61 @@ Matricola: 243420
 #include <sys/wait.h>
 #include <string.h>
 
+/*
+Per i comandi gestiti internamente (come verrebbero gestiti anche "esternamente"), non ho controllato 
+l'effettiva quantità di argomenti che l'utente mi passa, andando semplicemente a visionare quelli necessari
+*/
 
 #define N 512 /* Uso una variabile N per qualsiasi dimensione di stringa, pura comodità */
 
 int main(int argc, char **argv,char **envp)
 {
-	const char space[] = " ";;
+	const char space[1] = " ";
 	while(1)
 	{
 		pid_t pid; /* Stringa in cui avrò l'intero comando dato dall'utente */
 		char buffer[N];
 		char *token;
 		char kommand[N] = "/bin/";
-		char s[2];
-		char *p; // per le variabili d'ambiente
-		int nread;  /* saranno l'effettiva dimensione della stringa letta sulla mini-shell */
-		int status; 
-		//scanf("%s", buffer);
+		char *p; /* per le variabili d'ambiente */
+		int status, cdcheck; 
 		printf("$: ");
-		//nread = fgets(0, buffer, N);
-		// PROVARE CON FGETS
 		fgets(buffer, N, stdin);
 		if(buffer == NULL)
 		{
 			perror("Insert command, try again\n");
 			break;
 		}
-		printf("La stringa appena scritta: %s, grande %d \n", buffer, strlen(buffer));
 		char **ftok;
-		char *savepoint;
 		char *str1;
-		ftok = (char **)malloc(1*sizeof(char *));
-		int i=0, k;
+		ftok = (char **)malloc((N/2)*sizeof(char *));
+		/*
+		precarico una quantità fissata di puntatori a puntatori 
+		per non avere problemi in fase di reallocazione della memoria
+		*/
+		int i, k;
 		for(i=0, str1 = buffer; ; i++, str1 = NULL)
 		{
-			token = strtok_r(str1, space, &savepoint);
+			token = strtok(str1, space);
 			if(token == NULL)
+			{	
 				break;
-			ftok[i] = (char *)malloc(strlen(token)*sizeof(char));
-			ftok[i] = token;
-			printf("%s\n", token);
-			ftok = (char **)realloc(ftok, (i+1)*sizeof(char *));
+			}			
+			ftok[i] = (char *)malloc(sizeof(token)+sizeof(char));
+			strcpy(ftok[i], token);
 		}
-			/*
-
-			token = strtok_r(buffer, space, &savepoint);
-			ftok[i] = (char *)malloc(strlen(token)*sizeof(char));
-			ftok[i] = token;			
-			while(token != NULL)
-			{
-				token = strtok_r(NULL, space, &savepoint);
-				if((token == NULL))
-					break;
-				i++;
-				ftok = (char **)realloc(ftok, i*sizeof(char *));
-				ftok[i] = (char *)malloc(strlen(token)*sizeof(char));
-				strcpy(ftok[i], token);
-				write(1, ftok[i], strlen(ftok[i]));
-			}
-
-			if(i<1)
-			{
-				ftok = (char **)realloc(ftok, i*sizeof(char *));
-				ftok[i] = (char *)malloc(sizeof(char));
-				ftok[i] = '\0';
-			}
-			*/
+		ftok[i-1][strlen(ftok[i-1])-1] = '\0'; /*pare che la funzione ftok aggiunga, all'ultimo token, il carattere \n */
+		ftok[i] = (char *)malloc(sizeof(char));
+		ftok[i]= (char *)0;
+		
 		if(!(strcmp(ftok[0], "exit")))
 		{
-			printf("Have a nice day, hope I could help you soon\n");
+			/* gestisco direttamente l'uscita dal programma */
+			printf("Have a nice day, hope I could help you soon\n");						
+			for(k=0; k<i;k++)
+				free(ftok[k]);
+			free(ftok);
+			free(token);
 			exit(0);
 		} 
 		else if (!(strcmp(ftok[0], "printenv")))
@@ -89,13 +75,36 @@ int main(int argc, char **argv,char **envp)
 				strcat(p, "\n");
 				write(1, p, strlen(p));
 				envp += 1;
-			}	
+			}				
+			for(k=0; k<i;k++)
+				free(ftok[k]);
+			free(ftok);
+			free(token);
 		}
-		else  if((pid=fork())<0)
+		else if(!(strcmp(ftok[0], "cd")))
 		{
-			perror("Fork error, try again later!\n");
-			exit(-1);
+			if(i == 1)
+			{
+				printf("%s: Insert directory, try \"man %s\"\n", ftok[0], ftok[0]);
+			}
+			else
+			{	
+				cdcheck = chdir(ftok[1]);			
+				for(k=0; k<i;k++)
+					free(ftok[k]);
+				free(ftok);
+				free(token);
+				if(cdcheck)
+				{
+					perror("cd");
+				}
+			}
 		}
+		else if((pid=fork())<0) /* il figlio mi gestirà invece i comandi esterni */
+		{
+			perror("Fork error, try again later \n");
+		}
+		
 		else if(pid==0)
 		{
 			/* CODICE DEL FIGLIO
@@ -104,17 +113,17 @@ int main(int argc, char **argv,char **envp)
 			strncat(kommand, ftok[0], strlen(ftok[0]));
 			if((execv(kommand, ftok))==-1)
 			{
-				//perror("Command error, please check the syntax\n");
+				perror("Error");
 				exit(-1);
 			}
 		}
 		else
 		{
 			wait(&status);
+			for(k=0; k<i;k++)
+				free(ftok[k]);
+			free(ftok);
+			free(token);
 		}
-		for(k=0; k<i;k++)
-			free(ftok[i]);
-		free(ftok);
-		free(token);
 	}
 }
