@@ -1,8 +1,3 @@
-/*
-Nome: Matteo
-Cognome: Gruppi
-Matricola: 243420
-*/
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
